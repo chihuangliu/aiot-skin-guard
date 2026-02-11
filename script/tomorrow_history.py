@@ -5,8 +5,9 @@ from pprint import pprint
 
 dotenv.load_dotenv()
 
+location = "51.47398329464333,-0.1828879798975107"
 
-url = f"https://api.tomorrow.io/v4/weather/history/recent?location=51.47398329464333,-0.1828879798975107&timestamp=1h&apikey={os.getenv('tomorrow_apikey')}"
+url = f"https://api.tomorrow.io/v4/weather/history/recent?location={location}&timestamp=1h&apikey={os.getenv('tomorrow_apikey')}"
 
 
 response = requests.request("GET", url)

@@ -5,11 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.42.69",
     "openmeteo-requests>=1.7.5",
-    "pandas>=3.0.0",
+    "pandas>=2.0.0,<3.0.0",
     "python-dotenv>=1.2.1",
     "requests-cache>=1.3.0",
     "retry-requests>=2.0.0",
+    "streamlit>=1.30.0",
 ]
 
 [dependency-groups]
@@ -17,8 +19,8 @@ dev = [
     "ipykernel>=7.2.0",
     "jupyter>=1.1.1",
     "matplotlib>=3.10.8",
-    "numpy>=2.4.2",
-    "pandas>=3.0.0",
-    "scikit-learn>=1.8.0",
+    "numpy>=2.0.0",
+    "pandas>=2.0.0,<3.0.0",
+    "scikit-learn>=1.3.0",
     "seaborn>=0.13.2",
 ]

@@ -51,8 +51,14 @@ st.markdown(
 )
 
 
-# --- Section 1: Baseline Balancer (Current Status Orb) ---
-st.markdown("<div style='margin-bottom: 40px;'>", unsafe_allow_html=True)
+# --- Section 1: Pre-Flight Check (Indoor Baseline) ---
+st.markdown("### 🏠 Pre-Flight Check: Indoor Baseline")
+st.markdown(
+    "<p style='color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px;'>Your indoor environment dictates your baseline skin state before leaving.</p>",
+    unsafe_allow_html=True,
+)
+
+st.markdown("<div style='margin-bottom: 20px;'>", unsafe_allow_html=True)
 # Determine orb color based on indoor humidity (tradeoff between water retention and oil)
 in_hum = indoor_data.get("humidity", 0)
 if in_hum > 60:
@@ -73,11 +79,10 @@ else:
 
 orb_html = f"""
 <div class='orb-container'>
-    <div class='card-title' style='margin-bottom: 20px;'>Indoor Baseline Balancer</div>
-    <div class='status-orb' style='--core-color: {core_color}; --glow-color: {glow_color};'>
+    <div class='status-orb' style='--core-color: {core_color}; --glow-color: {glow_color}; box-shadow: 0 0 40px {glow_color}, inset 0 0 20px {glow_color};'>
         <div class='orb-ring'></div>
         <div class='orb-text'>{in_hum}%</div>
-        <div class='orb-label'>HUMIDITY</div>
+        <div class='orb-label'>INDOOR HUMIDITY</div>
     </div>
     <div style='text-align: center; margin-top: 24px;'>
         {orb_badge}
@@ -88,30 +93,101 @@ orb_html = f"""
 st.markdown(orb_html, unsafe_allow_html=True)
 
 # Small metric grid for actual numbers
-metrics_html = f"""
+metrics_html_indoor = f"""
 <div class='metric-grid'>
     <div class='metric-box'>
         <div class='metric-val'>{indoor_data.get("temperature", "--")}°C</div>
         <div class='metric-label'>Indoor Temp</div>
     </div>
     <div class='metric-box'>
-        <div class='metric-val'>{outdoor_data.get("temperature", "--")}°C</div>
-        <div class='metric-label'>Outdoor Temp</div>
+        <div class='metric-val'>{indoor_data.get("humidity", "--")}%</div>
+        <div class='metric-label'>Indoor Humidity</div>
     </div>
 </div>
 """
-st.markdown(metrics_html, unsafe_allow_html=True)
+st.markdown(metrics_html_indoor, unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- Section 2: Action Feed (Going Out Predictor) ---
-st.markdown("### 🔔 Action Feed")
+# --- Section 2: Step Outside (Environmental Shock) ---
+st.markdown(
+    "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
+    unsafe_allow_html=True,
+)
+st.markdown("### 🚪 Step Outside: Environmental Shock")
+st.markdown(
+    "<p style='color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px;'>The sudden gap between indoor and outdoor triggers immediate skin reactions.</p>",
+    unsafe_allow_html=True,
+)
+
+temp_diff = outdoor_data.get("temperature", 0) - indoor_data.get("temperature", 0)
+hum_diff = outdoor_data.get("humidity", 0) - indoor_data.get("humidity", 0)
+
+temp_shock_color = "#ef4444" if abs(temp_diff) > 5 else "#10b981"
+hum_shock_color = "#3b82f6" if hum_diff > 0 else "#f59e0b"
+
+metrics_html_shock = f"""
+<div class='metric-grid'>
+    <div class='metric-box' style='border-left: 4px solid {temp_shock_color};'>
+        <div class='metric-val' style='color: {temp_shock_color};'>{temp_diff:+.1f}°C</div>
+        <div class='metric-label'>Thermal Shock</div>
+        <div style='font-size: 0.75rem; color: #71717a; margin-top: 4px;'>Gap between In/Out</div>
+    </div>
+    <div class='metric-box' style='border-left: 4px solid {hum_shock_color};'>
+        <div class='metric-val' style='color: {hum_shock_color};'>{hum_diff:+.1f}%</div>
+        <div class='metric-label'>Humidity Shock</div>
+        <div style='font-size: 0.75rem; color: #71717a; margin-top: 4px;'>Gap between In/Out</div>
+    </div>
+</div>
+"""
+st.markdown(metrics_html_shock, unsafe_allow_html=True)
+
+
+# --- Section 3: Pure Outdoor Threats ---
+st.markdown(
+    "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
+    unsafe_allow_html=True,
+)
+st.markdown("### 🌤️ Pure Outdoor Threats")
+st.markdown(
+    "<p style='color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px;'>Direct outdoor factors that actively degrade your skin.</p>",
+    unsafe_allow_html=True,
+)
+
+uv_val = outdoor_data.get("uvIndex", 0)
+uv_color = "#ef4444" if uv_val >= 5 else ("#f59e0b" if uv_val >= 3 else "#10b981")
+cloud_val = outdoor_data.get("cloudCover", 0)
+cloud_color = "#3b82f6" if cloud_val > 70 else "#10b981"
+
+metrics_html_outdoor = f"""
+<div class='metric-grid'>
+    <div class='metric-box' style='border-left: 4px solid {uv_color};'>
+        <div class='metric-val' style='color: {uv_color};'>{uv_val}</div>
+        <div class='metric-label'>UV Index</div>
+        <div style='font-size: 0.75rem; color: #71717a; margin-top: 4px;'>Primary oil driver</div>
+    </div>
+    <div class='metric-box' style='border-left: 4px solid {cloud_color};'>
+        <div class='metric-val' style='color: {cloud_color};'>{cloud_val}%</div>
+        <div class='metric-label'>Cloud Cover</div>
+        <div style='font-size: 0.75rem; color: #71717a; margin-top: 4px;'>Water loss driver</div>
+    </div>
+</div>
+"""
+st.markdown(metrics_html_outdoor, unsafe_allow_html=True)
+
+
+# --- Section 4: Action Feed (Going Out Predictor) ---
+st.markdown(
+    "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
+    unsafe_allow_html=True,
+)
+st.markdown("### 🔔 Recommended Actions")
 
 actions = []
 
 if risk_factors.get("thermal_shock", 0) > 5:
     actions.append(f"""
-    <div class='glass-card'>
+    <div class='glass-card' style='border-color: rgba(239, 68, 68, 0.3);'>
         <div class='card-title'>⚠️ High Temperature Shock ({risk_factors["thermal_shock"]:.1f}°C jump)</div>
         <div class='card-desc'>Entering a radically hotter environment. Expect slight hydration loss and rapid oil generation. Consider a light, mattifying moisturizer before leaving.</div>
     </div>
@@ -127,7 +203,7 @@ if risk_factors.get("elasticity_boost"):
 
 if risk_factors.get("spring_back_risk"):
     actions.append("""
-    <div class='glass-card'>
+    <div class='glass-card' style='border-color: rgba(59, 130, 246, 0.3);'>
         <div class='card-title'>💧 Rapid 'Spring-Back' Warning</div>
         <div class='card-desc'>Your indoor baseline hydration is high. Stepping outside will cause a rapid loss of moisture due to the spring-back effect. Apply a sealing occlusive layer now.</div>
     </div>
@@ -135,23 +211,23 @@ if risk_factors.get("spring_back_risk"):
 
 if risk_factors.get("cloud_risk"):
     actions.append("""
-    <div class='glass-card'>
+    <div class='glass-card' style='border-color: rgba(96, 165, 250, 0.3);'>
         <div class='card-title'>☁️ Cloud Cover Dehydration</div>
-        <div class='card-desc'>Unique data pattern detected: Heavy clouds outside are strongly correlated with dehydration during trips. Pak a hydrating mist.</div>
+        <div class='card-desc'>Unique data pattern detected: Heavy clouds outside are strongly correlated with dehydration during trips. Pack a hydrating mist.</div>
     </div>
     """)
 
 if risk_factors.get("uv_oil_risk"):
     actions.append(f"""
-    <div class='glass-card'>
+    <div class='glass-card' style='border-color: rgba(245, 158, 11, 0.3);'>
         <div class='card-title'>☀️ Peak UV Alert (Index: {outdoor_data.get("uvIndex", "--")})</div>
-        <div class='card-desc'>High UV exposure outside will rapidly drive up oil production. Apply SPF and oil-control logic.</div>
+        <div class='card-desc'>High UV exposure outside will rapidly drive up oil production. Apply high SPF and oil-control layer.</div>
     </div>
     """)
 
 if not actions:
     actions.append("""
-    <div class='glass-card'>
+    <div class='glass-card' style='border-color: rgba(16, 185, 129, 0.3);'>
         <div class='card-title'>✅ Clear skies ahead</div>
         <div class='card-desc'>No significant environmental shocks detected. Your skin is safe to go out as-is.</div>
     </div>
@@ -161,9 +237,16 @@ for action in actions:
     st.markdown(action, unsafe_allow_html=True)
 
 
-# --- Section 3: Forecast Panel ---
-st.markdown("<div style='margin-top: 40px;'></div>", unsafe_allow_html=True)
-st.markdown("### 📡 2-Hour & 9-Hour Forecast")
+# --- Section 5: Forecast Panel ---
+st.markdown(
+    "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
+    unsafe_allow_html=True,
+)
+st.markdown("### 📡 2-Hour & 9-Hour Indoor Forecast")
+st.markdown(
+    "<p style='color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px;'>How current outdoor conditions will slowly affect your indoor baseline.</p>",
+    unsafe_allow_html=True,
+)
 
 forecasts = []
 

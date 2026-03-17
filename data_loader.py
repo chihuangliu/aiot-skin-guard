@@ -6,7 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 S3_BUCKET = os.getenv("s3_bucket")
-s3_client = boto3.client("s3")
+s3_client = boto3.client(
+    "s3",
+    aws_access_key_id=os.getenv("aws_access_key_id"),
+    aws_secret_access_key=os.getenv("aws_secret_access_key"),
+)
 
 
 def fetch_latest_json_from_s3(prefix):

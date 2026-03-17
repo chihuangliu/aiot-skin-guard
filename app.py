@@ -1,7 +1,7 @@
 import streamlit as st
 import data_loader
-import time
 import os
+from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
     page_title="Skin Guardian",
@@ -9,6 +9,9 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+
+# Auto-refresh the page every 15 minutes
+st_autorefresh(interval=15 * 60 * 1000, key="data_refresh")
 
 
 # Load custom CSS

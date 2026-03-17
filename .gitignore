@@ -11,3 +11,5 @@ wheels/
 
 # vscode settings
 .vscode/
+
+data/

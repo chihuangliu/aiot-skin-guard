@@ -52,7 +52,7 @@ st.markdown(
 
 
 # --- Section 1: Pre-Flight Check (Indoor Baseline) ---
-st.markdown("### 🏠 Pre-Flight Check: Indoor Baseline")
+st.markdown("### 🏠Indoor Baseline")
 st.markdown(
     "<p style='color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px;'>Your indoor environment dictates your baseline skin state before leaving.</p>",
     unsafe_allow_html=True,
@@ -148,7 +148,7 @@ st.markdown(
     "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
     unsafe_allow_html=True,
 )
-st.markdown("### 🌤️ Pure Outdoor Threats")
+st.markdown("### ☠️ Outdoor Threats")
 st.markdown(
     "<p style='color: #a1a1aa; font-size: 0.9rem; margin-bottom: 20px;'>Direct outdoor factors that actively degrade your skin.</p>",
     unsafe_allow_html=True,

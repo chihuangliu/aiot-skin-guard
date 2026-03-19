@@ -55,20 +55,16 @@ def get_latest_indoor_data():
 
 
 def get_latest_outdoor_data():
-    data = fetch_latest_json_from_s3("recent-history/")
+    data = fetch_latest_json_from_s3("realtime/")
     if not data:
         return None
 
     try:
-        hourly_data = data.get("timelines", {}).get("hourly", [])
-        if not hourly_data:
-            return None
+        realtime_data = data.get("data", {})
+        vals = realtime_data.get("values", {})
 
-        # Get the current/latest hour
-        latest_entry = hourly_data[-1]
-        vals = latest_entry.get("values", {})
         return {
-            "time": latest_entry.get("time"),
+            "time": realtime_data.get("time"),
             "temperature": vals.get("temperature"),
             "humidity": vals.get("humidity"),
             "cloudCover": vals.get("cloudCover"),

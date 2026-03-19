@@ -65,7 +65,7 @@ def get_latest_outdoor_data():
             return None
 
         # Get the current/latest hour
-        latest_entry = hourly_data[0]
+        latest_entry = hourly_data[-1]
         vals = latest_entry.get("values", {})
         return {
             "time": latest_entry.get("time"),

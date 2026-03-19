@@ -14,15 +14,23 @@ s3_client = boto3.client(
 
 
 def fetch_latest_json_from_s3(prefix):
-    response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)
-    if "Contents" not in response:
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=S3_BUCKET, Prefix=prefix)
+
+    latest_obj = None
+    for page in pages:
+        if "Contents" in page:
+            for obj in page["Contents"]:
+                if (
+                    latest_obj is None
+                    or obj["LastModified"] > latest_obj["LastModified"]
+                ):
+                    latest_obj = obj
+
+    if not latest_obj:
         return None
 
-    # Sort by LastModified to get the latest file
-    sorted_objects = sorted(
-        response["Contents"], key=lambda obj: obj["LastModified"], reverse=True
-    )
-    latest_key = sorted_objects[0]["Key"]
+    latest_key = latest_obj["Key"]
 
     obj_response = s3_client.get_object(Bucket=S3_BUCKET, Key=latest_key)
     data = json.loads(obj_response["Body"].read().decode("utf-8"))

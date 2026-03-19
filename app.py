@@ -26,7 +26,9 @@ load_css()
 
 
 # Data Fetching
-@st.cache_data(ttl=60 * 15)  # Cache for 15 minutes to avoid hitting S3 constantly
+@st.cache_data(
+    ttl=60 * 5
+)  # Cache for 5 minutes to ensure timely updates on autorefresh
 def get_data():
     indoor = data_loader.get_latest_indoor_data()
     outdoor = data_loader.get_latest_outdoor_data()

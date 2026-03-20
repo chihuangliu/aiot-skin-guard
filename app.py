@@ -641,6 +641,8 @@ st.markdown(
 
 uv_val = outdoor_data.get("uvIndex", 0)
 cloud_val = outdoor_data.get("cloudCover", 0)
+wind_val = outdoor_data.get("windSpeed", 0)
+dew_val = outdoor_data.get("dewPoint", 0)
 
 # UV Index Thresholds
 if uv_val <= 2:
@@ -664,6 +666,28 @@ else:
     cloud_color = "#ef4444"
     cloud_label = "Critical Dehydration"
 
+# Wind Speed Thresholds (m/s)
+if wind_val <= 2:
+    wind_color = "#10b981"
+    wind_label = "Calm"
+elif wind_val <= 5:
+    wind_color = "#f59e0b"
+    wind_label = "Elevated Risk"
+else:
+    wind_color = "#ef4444"
+    wind_label = "Moisture Stripping"
+
+# Dew Point Thresholds (°C) — lower = drier air = more TEWL
+if dew_val >= 10:
+    dew_color = "#10b981"
+    dew_label = "Comfortable"
+elif dew_val >= 5:
+    dew_color = "#f59e0b"
+    dew_label = "Elevated Dryness"
+else:
+    dew_color = "#ef4444"
+    dew_label = "Barrier Breakdown"
+
 metrics_html_outdoor = f"""
 <div class='metric-grid'>
     <div class='metric-box' style='--metric-color: {uv_color};'>
@@ -677,6 +701,18 @@ metrics_html_outdoor = f"""
         <div class='metric-label'>Cloud Cover</div>
         <div style='font-size: 0.9rem; color: #94a3b8; margin-top: 6px;'>Water loss driver</div>
         <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{cloud_color}; margin-top:12px;'>{cloud_label}</div>
+    </div>
+    <div class='metric-box' style='--metric-color: {wind_color};'>
+        <div class='metric-val'>{wind_val:.1f} m/s</div>
+        <div class='metric-label'>Wind Speed</div>
+        <div style='font-size: 0.9rem; color: #94a3b8; margin-top: 6px;'>Moisture stripping</div>
+        <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{wind_color}; margin-top:12px;'>{wind_label}</div>
+    </div>
+    <div class='metric-box' style='--metric-color: {dew_color};'>
+        <div class='metric-val'>{dew_val}°C</div>
+        <div class='metric-label'>Dew Point</div>
+        <div style='font-size: 0.9rem; color: #94a3b8; margin-top: 6px;'>Air moisture / TEWL</div>
+        <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{dew_color}; margin-top:12px;'>{dew_label}</div>
     </div>
 </div>
 """

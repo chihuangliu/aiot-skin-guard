@@ -59,42 +59,98 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# --- Panel Selector ---
+if "active_panel" not in st.session_state:
+    st.session_state.active_panel = "Main Monitoring"
 
-# --- Section 1: Pre-Flight Check (Indoor Baseline) ---
-st.markdown("<h3 class='section-title'>INDOOR BASELINE</h3>", unsafe_allow_html=True)
+panels = ["Main Monitoring", "Historical Insights"]
+
+# Style primary button as gradient pill, secondary as dim pill
 st.markdown(
-    "<p class='section-subtitle'><span class='slash'>//</span> Your indoor environment dictates your baseline skin state before leaving.</p>",
+    """
+    <style>
+    /* Scope to the panel selector row only */
+    [data-testid="stHorizontalBlock"]:has(button[kind="primary"]) button {
+        border-radius: 26px !important;
+        padding: 8px 24px !important;
+        font-family: monospace !important;
+        font-size: 0.82rem !important;
+        letter-spacing: 0.09em !important;
+        transition: all 0.22s ease !important;
+    }
+    [data-testid="stHorizontalBlock"]:has(button[kind="primary"]) button[kind="secondary"] {
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        background: rgba(255,255,255,0.04) !important;
+        color: #64748b !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stHorizontalBlock"]:has(button[kind="primary"]) button[kind="secondary"]:hover {
+        border-color: rgba(139,92,246,0.5) !important;
+        color: #c4b5fd !important;
+        background: rgba(139,92,246,0.12) !important;
+        box-shadow: 0 0 14px rgba(139,92,246,0.20) !important;
+    }
+    [data-testid="stHorizontalBlock"]:has(button[kind="primary"]) button[kind="primary"] {
+        border: 1px solid rgba(139,92,246,0.6) !important;
+        background: linear-gradient(130deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%) !important;
+        color: #fff !important;
+        font-weight: 700 !important;
+        box-shadow: 0 0 24px rgba(139,92,246,0.55), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    }
+    [data-testid="stHorizontalBlock"]:has(button[kind="primary"]) button[kind="primary"]:hover {
+        box-shadow: 0 0 36px rgba(139,92,246,0.75), 0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
 
-st.markdown("<div style='margin-bottom: 20px;'>", unsafe_allow_html=True)
-# Determine orb color based on indoor humidity (tradeoff between water retention and oil)
-in_hum = indoor_data.get("humidity", 0)
-if in_hum > 60:
-    core_color = "rgba(245, 158, 11, 0.8)"  # Yellow/Orange: High baseline oil risk
-    glow_color = "rgba(245, 158, 11, 0.25)"
-    orb_desc = "Optimal Hydration<br>but High Oil Bias"
-    orb_badge = "<span class='badge badge-warning'>Oil Risk</span>"
-elif in_hum < 30:
-    core_color = "rgba(239, 68, 68, 0.8)"  # Red: Too dry
-    glow_color = "rgba(239, 68, 68, 0.25)"
-    orb_desc = "Critically Dry<br>Low Protection"
-    orb_badge = "<span class='badge badge-danger'>Dehydration Alert</span>"
-else:
-    core_color = "rgba(16, 185, 129, 0.8)"  # Green: Balanced
-    glow_color = "rgba(16, 185, 129, 0.25)"
-    orb_desc = "Optimal Balance<br>Stable Baseline"
-    orb_badge = "<span class='badge badge-success'>Balanced</span>"
+_panel_cols = st.columns(len(panels))
+for _i, _p in enumerate(panels):
+    _is_active = st.session_state.active_panel == _p
+    _btn_type = "primary" if _is_active else "secondary"
+    with _panel_cols[_i]:
+        if st.button(_p, key=f"panel_btn_{_p}", use_container_width=True, type=_btn_type):
+            st.session_state.active_panel = _p
+            st.rerun()
 
-in_temp = indoor_data.get("temperature", 22)
-if in_temp > 26:
-    temp_badge = "<span class='badge badge-danger'>Too Hot</span>"
-elif in_temp < 18:
-    temp_badge = "<span class='badge badge-purple'>Too Cold</span>"
-else:
-    temp_badge = "<span class='badge badge-info'>Pleasant</span>"
 
-orb_html = f"""
+# --- Section 1: Pre-Flight Check (Indoor Baseline) — Main Monitoring only ---
+if st.session_state.active_panel == "Main Monitoring":
+    st.markdown(
+        "<h3 class='section-title'>INDOOR BASELINE</h3>", unsafe_allow_html=True
+    )
+    st.markdown(
+        "<p class='section-subtitle'><span class='slash'>//</span> Your indoor environment dictates your baseline skin state before leaving.</p>",
+        unsafe_allow_html=True,
+    )
+
+if st.session_state.active_panel == "Main Monitoring":
+    st.markdown("<div style='margin-bottom: 20px;'>", unsafe_allow_html=True)
+    # Determine orb color based on indoor humidity
+    in_hum = indoor_data.get("humidity", 0)
+    if in_hum > 60:
+        core_color = "rgba(245, 158, 11, 0.8)"
+        glow_color = "rgba(245, 158, 11, 0.25)"
+        orb_badge = "<span class='badge badge-warning'>Oil Risk</span>"
+    elif in_hum < 30:
+        core_color = "rgba(239, 68, 68, 0.8)"
+        glow_color = "rgba(239, 68, 68, 0.25)"
+        orb_badge = "<span class='badge badge-danger'>Dehydration Alert</span>"
+    else:
+        core_color = "rgba(16, 185, 129, 0.8)"
+        glow_color = "rgba(16, 185, 129, 0.25)"
+        orb_badge = "<span class='badge badge-success'>Balanced</span>"
+
+    in_temp = indoor_data.get("temperature", 22)
+    if in_temp > 26:
+        temp_badge = "<span class='badge badge-danger'>Too Hot</span>"
+    elif in_temp < 18:
+        temp_badge = "<span class='badge badge-purple'>Too Cold</span>"
+    else:
+        temp_badge = "<span class='badge badge-info'>Pleasant</span>"
+
+    orb_html = f"""
 <div class='orb-container' style='flex-direction: row; gap: 60px; flex-wrap: wrap; padding: 20px 0 40px 0;'>
 <div style='display: flex; flex-direction: column; align-items: center;'>
 <div class='status-orb' style='--core-color: rgba(59, 130, 246, 0.8); --glow-color: rgba(59, 130, 246, 0.25); box-shadow: 0 0 40px rgba(59, 130, 246, 0.25), inset 0 0 20px rgba(59, 130, 246, 0.2);'>
@@ -118,13 +174,23 @@ orb_html = f"""
 </div>
 </div>
 """
-st.markdown(orb_html, unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown(orb_html, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- Section 2: 24H Environmental History (Collapsible) ---
+# =========================================================
+# HISTORICAL INSIGHTS PANEL
+# =========================================================
+if st.session_state.active_panel == "Historical Insights":
+    st.markdown(
+        "<h3 class='section-title'>24H TEMPERATURE &amp; HUMIDITY</h3>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p class='section-subtitle'><span class='slash'>//</span> Indoor vs outdoor sensor readings with environmental shock bands.</p>",
+        unsafe_allow_html=True,
+    )
 
-with st.expander("See 24H Temperature & Humidity", expanded=False):
     TEMP_SHOCK_THRESHOLD = 5.0
     HUM_SHOCK_THRESHOLD = 15.0
 
@@ -363,9 +429,15 @@ with st.expander("See 24H Temperature & Humidity", expanded=False):
             unsafe_allow_html=True,
         )
 
+    st.markdown(
+        "<h3 class='section-title' style='margin-top:40px;'>24H OUTDOOR THREATS</h3>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<p class='section-subtitle'><span class='slash'>//</span> Outdoor factors correlated to skin risk — shaded regions = active threat.</p>",
+        unsafe_allow_html=True,
+    )
 
-# --- Outdoor Threats Expander ---
-with st.expander("See 24H Outdoor Threats", expanded=False):
     import plotly.subplots as psp
 
     # Skin-correlated outdoor threat definitions
@@ -570,8 +642,11 @@ with st.expander("See 24H Outdoor Threats", expanded=False):
         st.info("No outdoor history data available for the last 24 hours.")
 
 
-# --- Section 3: Step Outside (Environmental Shock) ---
+# When in Historical Insights mode, stop here — don't render Main Monitoring sections
+if st.session_state.active_panel == "Historical Insights":
+    st.stop()
 
+# --- Section 3: Step Outside (Environmental Shock) ---
 st.markdown(
     "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
     unsafe_allow_html=True,

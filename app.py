@@ -27,10 +27,8 @@ def load_css():
 load_css()
 
 
-# Data Fetching
-@st.cache_data(
-    ttl=60 * 5
-)  # Cache for 5 minutes to ensure timely updates on autorefresh
+# Data Fetching — show_spinner=False prevents the "Running get_data()." banner
+@st.cache_data(ttl=60 * 5, show_spinner=False)
 def get_data():
     indoor = data_loader.get_latest_indoor_data()
     outdoor = data_loader.get_latest_outdoor_data()
@@ -40,16 +38,7 @@ def get_data():
     return indoor, outdoor, risks, indoor_history, outdoor_history
 
 
-indoor_data, outdoor_data, risk_factors, indoor_history, outdoor_history = get_data()
-
-if not indoor_data or not outdoor_data:
-    st.error(
-        "Failed to load data from S3. Please ensure data exists and credentials are correct."
-    )
-    st.stop()
-
-
-# UI Header
+# --- Always render the header first so the title is visible immediately ---
 st.markdown(
     "<h1 class='hud-title'>SKIN_GUARDIAN<span class='blink'>_</span></h1>",
     unsafe_allow_html=True,
@@ -58,6 +47,69 @@ st.markdown(
     "<p class='hud-subtitle'>// PREDICTIVE ENVIRONMENTAL DERMATOLOGICAL ANALYSIS</p>",
     unsafe_allow_html=True,
 )
+
+# Detect first-ever load: no data in cache yet
+_first_load = "data_loaded" not in st.session_state
+
+if _first_load:
+    # Show a styled loading status bar on first load only
+    _load_placeholder = st.empty()
+    _load_placeholder.markdown(
+        """
+        <div style='
+            background: rgba(139,92,246,0.08);
+            border: 1px solid rgba(139,92,246,0.25);
+            border-radius: 12px;
+            padding: 24px 28px;
+            margin: 20px 0;
+            font-family: monospace;
+        '>
+            <div style='color: #c4b5fd; font-size: 0.85rem; letter-spacing: 0.12em; margin-bottom: 12px;'>
+                // INITIALISING SENSOR STREAMS
+            </div>
+            <div style='
+                background: rgba(255,255,255,0.06);
+                border-radius: 6px;
+                height: 6px;
+                overflow: hidden;
+            '>
+                <div style='
+                    height: 100%;
+                    width: 60%;
+                    background: linear-gradient(90deg, #6366f1, #a855f7, #6366f1);
+                    background-size: 200% 100%;
+                    border-radius: 6px;
+                    animation: shimmer 1.4s infinite;
+                '></div>
+            </div>
+            <style>
+                @keyframes shimmer {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                }
+            </style>
+            <div style='color: #64748b; font-size: 0.78rem; margin-top: 10px;'>
+                Fetching indoor &amp; outdoor sensor data...
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+indoor_data, outdoor_data, risk_factors, indoor_history, outdoor_history = get_data()
+
+if _first_load:
+    st.session_state["data_loaded"] = True
+    _load_placeholder.empty()  # Remove loading bar once data is ready
+
+if not indoor_data or not outdoor_data:
+    st.error(
+        "Failed to load data from S3. Please ensure data exists and credentials are correct."
+    )
+    st.stop()
+
+
+# (Header already rendered above before data fetch)
 
 # --- Panel Selector ---
 if "active_panel" not in st.session_state:
@@ -110,7 +162,9 @@ for _i, _p in enumerate(panels):
     _is_active = st.session_state.active_panel == _p
     _btn_type = "primary" if _is_active else "secondary"
     with _panel_cols[_i]:
-        if st.button(_p, key=f"panel_btn_{_p}", use_container_width=True, type=_btn_type):
+        if st.button(
+            _p, key=f"panel_btn_{_p}", use_container_width=True, type=_btn_type
+        ):
             st.session_state.active_panel = _p
             st.rerun()
 

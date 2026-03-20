@@ -57,7 +57,7 @@ st.markdown(
 
 
 # --- Section 1: Pre-Flight Check (Indoor Baseline) ---
-st.markdown("### 🏠Indoor Baseline")
+st.markdown("### 🏠 Indoor Baseline")
 st.markdown(
     "<p style='color: #475569; font-size: 0.9rem; margin-bottom: 20px;'>Your indoor environment dictates your baseline skin state before leaving.</p>",
     unsafe_allow_html=True,
@@ -123,7 +123,7 @@ st.markdown(
     "<hr style='border-color: rgba(0,0,0,0.1); margin: 30px 0;'>",
     unsafe_allow_html=True,
 )
-st.markdown("### ⚡ Outdoor Environmental Shock")
+st.markdown("### ⚡ Indoor ↔ Outdoor Environmental Shock")
 st.markdown(
     "<p style='color: #475569; font-size: 0.9rem; margin-bottom: 20px;'>The sudden gap between indoor and outdoor triggers immediate skin reactions.</p>",
     unsafe_allow_html=True,
@@ -132,8 +132,27 @@ st.markdown(
 temp_diff = outdoor_data.get("temperature", 0) - indoor_data.get("temperature", 0)
 hum_diff = outdoor_data.get("humidity", 0) - indoor_data.get("humidity", 0)
 
-temp_shock_color = "#ef4444" if abs(temp_diff) > 5 else "#10b981"
-hum_shock_color = "#3b82f6" if hum_diff > 0 else "#f59e0b"
+# Thermal Shock Thresholds
+if -3 <= temp_diff <= 3:
+    temp_shock_color = "#10b981"
+    temp_label = "Safe"
+elif temp_diff < -5 or temp_diff > 5:
+    temp_shock_color = "#ef4444"
+    temp_label = "Critical Threat"
+else:
+    temp_shock_color = "#f59e0b"
+    temp_label = "Elevated Risk"
+
+# Humidity Shock Thresholds
+if -5 <= hum_diff <= 5:
+    hum_shock_color = "#10b981"
+    hum_label = "Safe"
+elif hum_diff > 15 or hum_diff < -15:
+    hum_shock_color = "#ef4444"
+    hum_label = "Critical Dehydration"
+else:
+    hum_shock_color = "#f59e0b"
+    hum_label = "Elevated Risk"
 
 metrics_html_shock = f"""
 <div class='metric-grid'>
@@ -141,11 +160,13 @@ metrics_html_shock = f"""
         <div class='metric-val' style='color: {temp_shock_color};'>{temp_diff:+.1f}°C</div>
         <div class='metric-label'>Thermal Shock</div>
         <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Gap between In/Out</div>
+        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{temp_shock_color}; margin-top:12px;'>{temp_label}</div>
     </div>
     <div class='metric-box' style='border-left: 4px solid {hum_shock_color};'>
         <div class='metric-val' style='color: {hum_shock_color};'>{hum_diff:+.1f}%</div>
         <div class='metric-label'>Humidity Shock</div>
         <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Gap between In/Out</div>
+        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{hum_shock_color}; margin-top:12px;'>{hum_label}</div>
     </div>
 </div>
 """
@@ -164,9 +185,29 @@ st.markdown(
 )
 
 uv_val = outdoor_data.get("uvIndex", 0)
-uv_color = "#ef4444" if uv_val >= 5 else ("#f59e0b" if uv_val >= 3 else "#10b981")
 cloud_val = outdoor_data.get("cloudCover", 0)
-cloud_color = "#3b82f6" if cloud_val > 70 else "#10b981"
+
+# UV Index Thresholds
+if uv_val <= 2:
+    uv_color = "#10b981"
+    uv_label = "Safe"
+elif uv_val <= 5:
+    uv_color = "#f59e0b"
+    uv_label = "Elevated Risk"
+else:
+    uv_color = "#ef4444"
+    uv_label = "Critical Oil Threat"
+
+# Cloud Cover Thresholds
+if cloud_val <= 30:
+    cloud_color = "#10b981"
+    cloud_label = "Safe"
+elif cloud_val <= 70:
+    cloud_color = "#f59e0b"
+    cloud_label = "Elevated Risk"
+else:
+    cloud_color = "#ef4444"
+    cloud_label = "Critical Dehydration"
 
 metrics_html_outdoor = f"""
 <div class='metric-grid'>
@@ -174,11 +215,13 @@ metrics_html_outdoor = f"""
         <div class='metric-val' style='color: {uv_color};'>{uv_val}</div>
         <div class='metric-label'>UV Index</div>
         <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Primary oil driver</div>
+        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{uv_color}; margin-top:12px;'>{uv_label}</div>
     </div>
     <div class='metric-box' style='border-left: 4px solid {cloud_color};'>
         <div class='metric-val' style='color: {cloud_color};'>{cloud_val}%</div>
         <div class='metric-label'>Cloud Cover</div>
         <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Water loss driver</div>
+        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{cloud_color}; margin-top:12px;'>{cloud_label}</div>
     </div>
 </div>
 """

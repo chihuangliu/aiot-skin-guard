@@ -122,10 +122,12 @@ footer {
 }
 
 .metric-label {
-    font-size: 0.75rem;
-    color: #64748b;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #475569;
     text-transform: uppercase;
-    margin-top: 4px;
+    margin-top: 6px;
+    letter-spacing: 0.5px;
 }
 
 @keyframes pulse {

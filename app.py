@@ -159,14 +159,14 @@ metrics_html_shock = f"""
     <div class='metric-box' style='border-left: 4px solid {temp_shock_color};'>
         <div class='metric-val' style='color: {temp_shock_color};'>{temp_diff:+.1f}°C</div>
         <div class='metric-label'>Thermal Shock</div>
-        <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Gap between In/Out</div>
-        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{temp_shock_color}; margin-top:12px;'>{temp_label}</div>
+        <div style='font-size: 0.9rem; color: #64748b; margin-top: 6px;'>Gap between In/Out</div>
+        <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{temp_shock_color}; margin-top:12px;'>{temp_label}</div>
     </div>
     <div class='metric-box' style='border-left: 4px solid {hum_shock_color};'>
         <div class='metric-val' style='color: {hum_shock_color};'>{hum_diff:+.1f}%</div>
         <div class='metric-label'>Humidity Shock</div>
-        <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Gap between In/Out</div>
-        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{hum_shock_color}; margin-top:12px;'>{hum_label}</div>
+        <div style='font-size: 0.9rem; color: #64748b; margin-top: 6px;'>Gap between In/Out</div>
+        <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{hum_shock_color}; margin-top:12px;'>{hum_label}</div>
     </div>
 </div>
 """
@@ -214,14 +214,14 @@ metrics_html_outdoor = f"""
     <div class='metric-box' style='border-left: 4px solid {uv_color};'>
         <div class='metric-val' style='color: {uv_color};'>{uv_val}</div>
         <div class='metric-label'>UV Index</div>
-        <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Primary oil driver</div>
-        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{uv_color}; margin-top:12px;'>{uv_label}</div>
+        <div style='font-size: 0.9rem; color: #64748b; margin-top: 6px;'>Primary oil driver</div>
+        <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{uv_color}; margin-top:12px;'>{uv_label}</div>
     </div>
     <div class='metric-box' style='border-left: 4px solid {cloud_color};'>
         <div class='metric-val' style='color: {cloud_color};'>{cloud_val}%</div>
         <div class='metric-label'>Cloud Cover</div>
-        <div style='font-size: 0.75rem; color: #64748b; margin-top: 4px;'>Water loss driver</div>
-        <div style='display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600; color:#fff; background-color:{cloud_color}; margin-top:12px;'>{cloud_label}</div>
+        <div style='font-size: 0.9rem; color: #64748b; margin-top: 6px;'>Water loss driver</div>
+        <div style='display:inline-block; padding:4px 12px; border-radius:12px; font-size:0.85rem; font-weight:600; color:#fff; background-color:{cloud_color}; margin-top:12px;'>{cloud_label}</div>
     </div>
 </div>
 """

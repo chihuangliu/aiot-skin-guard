@@ -165,6 +165,10 @@ def get_outdoor_history_24h():
                         "time": time_str,
                         "temperature": temp,
                         "humidity": hum,
+                        "uvIndex": vals.get("uvIndex"),
+                        "windSpeed": vals.get("windSpeed"),
+                        "cloudCover": vals.get("cloudCover"),
+                        "dewPoint": vals.get("dewPoint"),
                     }
             except Exception as e:
                 print(f"Error reading outdoor history object {obj['Key']}: {e}")

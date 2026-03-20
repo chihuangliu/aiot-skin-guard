@@ -364,7 +364,214 @@ with st.expander("See 24H Temperature & Humidity", expanded=False):
         )
 
 
+# --- Outdoor Threats Expander ---
+with st.expander("See 24H Outdoor Threats", expanded=False):
+    import plotly.subplots as psp
+
+    # Skin-correlated outdoor threat definitions
+    # (field, label, unit, risk_threshold, risk_direction, risk_color, risk_reason, line_color)
+    THREAT_FACTORS = [
+        {
+            "field": "uvIndex",
+            "label": "UV Index",
+            "unit": "",
+            "threshold": 5,
+            "above": True,
+            "risk_reason": "⚡ Oil surge",
+            "line_color": "#f97316",
+            "risk_color": "rgba(249,115,22,0.18)",
+            "y_tickformat": ".0f",
+        },
+        {
+            "field": "windSpeed",
+            "label": "Wind Speed",
+            "unit": "m/s",
+            "threshold": 5.0,
+            "above": True,
+            "risk_reason": "💨 Moisture stripping",
+            "line_color": "#38bdf8",
+            "risk_color": "rgba(56,189,248,0.15)",
+            "y_tickformat": ".1f",
+        },
+        {
+            "field": "cloudCover",
+            "label": "Cloud Cover",
+            "unit": "%",
+            "threshold": 70,
+            "above": True,
+            "risk_reason": "☁️ Dehydration driver",
+            "line_color": "#a78bfa",
+            "risk_color": "rgba(167,139,250,0.15)",
+            "y_tickformat": ".0f",
+        },
+        {
+            "field": "dewPoint",
+            "label": "Dew Point",
+            "unit": "°C",
+            "threshold": 5,
+            "above": False,  # Risk when BELOW threshold (very dry air)
+            "risk_reason": "🌵 Barrier breakdown",
+            "line_color": "#34d399",
+            "risk_color": "rgba(52,211,153,0.15)",
+            "y_tickformat": ".1f",
+        },
+    ]
+
+    PLOT_BG2 = "rgba(10, 14, 26, 0)"
+    GRID_COLOR2 = "rgba(255,255,255,0.07)"
+    FONT_COLOR2 = "#94a3b8"
+    TITLE_COLOR2 = "#e2e8f0"
+
+    def _parse_dt(t):
+        return datetime.fromisoformat(t.replace("Z", "+00:00"))
+
+    def _risk_bands_1d(records, field, threshold, above):
+        """Return (start, end) bands where field exceeds/is below threshold."""
+        shock_ts = []
+        for r in records:
+            val = r.get(field)
+            if val is None:
+                continue
+            in_risk = val >= threshold if above else val <= threshold
+            if in_risk:
+                shock_ts.append(_parse_dt(r["time"]))
+        bands = []
+        if shock_ts:
+            s = e = shock_ts[0]
+            for t in shock_ts[1:]:
+                if (t - e).total_seconds() < 7200:
+                    e = t
+                else:
+                    bands.append((s, e))
+                    s = e = t
+            bands.append((s, e))
+        return bands
+
+    if outdoor_history:
+        n_rows = len(THREAT_FACTORS)
+        fig_threats = psp.make_subplots(
+            rows=n_rows,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.06,
+            subplot_titles=[f["label"] for f in THREAT_FACTORS],
+        )
+
+        # Style subplot title fonts
+        for ann in fig_threats.layout.annotations:
+            ann.update(font=dict(color=TITLE_COLOR2, size=12))
+
+        for i, fdef in enumerate(THREAT_FACTORS):
+            row = i + 1
+            times = [
+                _parse_dt(r["time"])
+                for r in outdoor_history
+                if r.get(fdef["field"]) is not None
+            ]
+            vals = [
+                r[fdef["field"]]
+                for r in outdoor_history
+                if r.get(fdef["field"]) is not None
+            ]
+
+            if not times:
+                continue
+
+            unit = fdef["unit"]
+            fig_threats.add_trace(
+                go.Scatter(
+                    x=times,
+                    y=vals,
+                    mode="lines",
+                    name=fdef["label"],
+                    showlegend=False,
+                    line=dict(color=fdef["line_color"], width=2),
+                    hovertemplate=f"%{{x|%H:%M}}<br>{fdef['label']}: %{{y:.1f}}{unit}<extra></extra>",
+                ),
+                row=row,
+                col=1,
+            )
+
+            # Add threshold reference line
+            fig_threats.add_hline(
+                y=fdef["threshold"],
+                line=dict(color="rgba(239,68,68,0.4)", width=1, dash="dash"),
+                row=row,
+                col=1,
+            )
+
+            # Shade risk bands + annotate first band with reason
+            bands = _risk_bands_1d(
+                outdoor_history, fdef["field"], fdef["threshold"], fdef["above"]
+            )
+            for j, (bs, be) in enumerate(bands):
+                fig_threats.add_vrect(
+                    x0=bs,
+                    x1=be,
+                    fillcolor=fdef["risk_color"],
+                    layer="below",
+                    line_width=0,
+                    row=row,
+                    col=1,
+                )
+                if j == 0:
+                    # Annotate only the first occurrence to avoid clutter
+                    fig_threats.add_annotation(
+                        x=bs,
+                        y=fdef["threshold"],
+                        xref=f"x{'' if row == 1 else row}",
+                        yref=f"y{'' if row == 1 else row}",
+                        text=fdef["risk_reason"],
+                        showarrow=False,
+                        xanchor="left",
+                        yanchor="bottom",
+                        font=dict(color="#ef4444", size=10),
+                        bgcolor="rgba(0,0,0,0)",
+                    )
+
+            # Y-axis per row
+            fig_threats.update_yaxes(
+                tickformat=fdef["y_tickformat"],
+                gridcolor=GRID_COLOR2,
+                showgrid=True,
+                zeroline=False,
+                tickfont=dict(color=FONT_COLOR2, size=10),
+                row=row,
+                col=1,
+            )
+
+        # Shared x-axis (only bottom row shows labels)
+        fig_threats.update_xaxes(
+            gridcolor=GRID_COLOR2,
+            tickformat="%H:%M",
+            zeroline=False,
+            tickfont=dict(color=FONT_COLOR2, size=10),
+        )
+
+        fig_threats.update_layout(
+            paper_bgcolor=PLOT_BG2,
+            plot_bgcolor=PLOT_BG2,
+            font=dict(color=FONT_COLOR2, family="monospace"),
+            margin=dict(l=0, r=0, t=40, b=0),
+            height=160 * n_rows,
+            hovermode="x unified",
+            showlegend=False,
+        )
+
+        st.plotly_chart(fig_threats, use_container_width=True)
+        st.markdown(
+            "<p style='font-size:0.8rem; color:#64748b; margin-top:2px;'>"
+            "Dashed red line = risk threshold. Shaded regions = active risk period. "
+            "Factors: UV ≥ 5 → oil surge · Wind > 5 m/s → moisture loss · "
+            "Cloud > 70% → dehydration · Dew Point ≤ 5°C → barrier breakdown</p>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.info("No outdoor history data available for the last 24 hours.")
+
+
 # --- Section 3: Step Outside (Environmental Shock) ---
+
 st.markdown(
     "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
     unsafe_allow_html=True,

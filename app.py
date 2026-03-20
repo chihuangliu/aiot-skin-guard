@@ -1,6 +1,8 @@
 import streamlit as st
 import data_loader
 import os
+import plotly.graph_objects as go
+from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
@@ -33,10 +35,12 @@ def get_data():
     indoor = data_loader.get_latest_indoor_data()
     outdoor = data_loader.get_latest_outdoor_data()
     risks = data_loader.calculate_risk_factors(indoor, outdoor)
-    return indoor, outdoor, risks
+    indoor_history = data_loader.get_indoor_history_24h()
+    outdoor_history = data_loader.get_outdoor_history_24h()
+    return indoor, outdoor, risks, indoor_history, outdoor_history
 
 
-indoor_data, outdoor_data, risk_factors = get_data()
+indoor_data, outdoor_data, risk_factors, indoor_history, outdoor_history = get_data()
 
 if not indoor_data or not outdoor_data:
     st.error(
@@ -118,7 +122,249 @@ st.markdown(orb_html, unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- Section 2: Step Outside (Environmental Shock) ---
+# --- Section 2: 24H Environmental History (Collapsible) ---
+
+with st.expander("See 24H Temperature & Humidity", expanded=False):
+    TEMP_SHOCK_THRESHOLD = 5.0
+    HUM_SHOCK_THRESHOLD = 15.0
+
+    PLOT_BG = "rgba(10, 14, 26, 0)"
+    GRID_COLOR = "rgba(255,255,255,0.07)"
+    FONT_COLOR = "#94a3b8"
+    TITLE_COLOR = "#e2e8f0"
+
+    def _parse_time(t):
+        return datetime.fromisoformat(t.replace("Z", "+00:00"))
+
+    def _find_shock_bands(in_series, out_series, threshold):
+        """Return list of (start, end) datetime tuples where |in-out| > threshold."""
+        # Build a merged timeline
+        in_map = {r["time"]: r for r in in_series}
+        out_map = {r["time"]: r for r in out_series}
+        all_times = sorted(set(list(in_map.keys()) + list(out_map.keys())))
+
+        shock_times = []
+        prev_in = prev_out = None
+        for t in all_times:
+            in_r = in_map.get(t)
+            out_r = out_map.get(t)
+            val_in = in_r["temperature"] if in_r else None
+            val_out = out_r["temperature"] if out_r else None
+            if val_in is None:
+                val_in = prev_in
+            if val_out is None:
+                val_out = prev_out
+            if val_in is not None and val_out is not None:
+                if abs(val_out - val_in) > threshold:
+                    shock_times.append(_parse_time(t))
+            prev_in = val_in
+            prev_out = val_out
+
+        # Merge consecutive shock timestamps into bands
+        bands = []
+        if shock_times:
+            start = shock_times[0]
+            end = shock_times[0]
+            for st_time in shock_times[1:]:
+                if (st_time - end).total_seconds() < 7200:  # gap < 2h -> same band
+                    end = st_time
+                else:
+                    bands.append((start, end))
+                    start = end = st_time
+            bands.append((start, end))
+        return bands
+
+    def _find_hum_shock_bands(in_series, out_series, threshold):
+        in_map = {r["time"]: r for r in in_series}
+        out_map = {r["time"]: r for r in out_series}
+        all_times = sorted(set(list(in_map.keys()) + list(out_map.keys())))
+
+        shock_times = []
+        prev_in = prev_out = None
+        for t in all_times:
+            in_r = in_map.get(t)
+            out_r = out_map.get(t)
+            val_in = in_r["humidity"] if in_r else None
+            val_out = out_r["humidity"] if out_r else None
+            if val_in is None:
+                val_in = prev_in
+            if val_out is None:
+                val_out = prev_out
+            if val_in is not None and val_out is not None:
+                if abs(val_out - val_in) > threshold:
+                    shock_times.append(_parse_time(t))
+            prev_in = val_in
+            prev_out = val_out
+
+        bands = []
+        if shock_times:
+            start = shock_times[0]
+            end = shock_times[0]
+            for st_time in shock_times[1:]:
+                if (st_time - end).total_seconds() < 7200:
+                    end = st_time
+                else:
+                    bands.append((start, end))
+                    start = end = st_time
+            bands.append((start, end))
+        return bands
+
+    def _make_chart(
+        title,
+        in_times,
+        in_vals,
+        out_times,
+        out_vals,
+        in_color,
+        out_color,
+        y_label,
+        shock_bands,
+    ):
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=in_times,
+                y=in_vals,
+                mode="lines",
+                name="Indoor",
+                line=dict(color=in_color, width=2),
+                hovertemplate="%{x|%H:%M}<br>Indoor: %{y:.1f}<extra></extra>",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=out_times,
+                y=out_vals,
+                mode="lines",
+                name="Outdoor",
+                line=dict(color=out_color, width=2, dash="dot"),
+                hovertemplate="%{x|%H:%M}<br>Outdoor: %{y:.1f}<extra></extra>",
+            )
+        )
+        for band_start, band_end in shock_bands:
+            fig.add_vrect(
+                x0=band_start,
+                x1=band_end,
+                fillcolor="rgba(239,68,68,0.18)",
+                layer="below",
+                line_width=0,
+                annotation_text="⚡ SHOCK",
+                annotation_position="top left",
+                annotation_font_size=10,
+                annotation_font_color="#ef4444",
+            )
+        fig.update_layout(
+            title=dict(text=title, font=dict(color=TITLE_COLOR, size=14), x=0),
+            paper_bgcolor=PLOT_BG,
+            plot_bgcolor=PLOT_BG,
+            font=dict(color=FONT_COLOR, family="monospace"),
+            xaxis=dict(
+                gridcolor=GRID_COLOR,
+                showgrid=True,
+                tickformat="%H:%M",
+                zeroline=False,
+                title=None,
+            ),
+            yaxis=dict(
+                gridcolor=GRID_COLOR,
+                showgrid=True,
+                zeroline=False,
+                title=y_label,
+                title_font=dict(color=FONT_COLOR),
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(color=FONT_COLOR),
+                bgcolor="rgba(0,0,0,0)",
+            ),
+            margin=dict(l=0, r=0, t=40, b=0),
+            height=280,
+            hovermode="x unified",
+        )
+        return fig
+
+    # --- Temperature Chart ---
+    in_temp_times = [
+        _parse_time(r["time"])
+        for r in indoor_history
+        if r.get("temperature") is not None
+    ]
+    in_temp_vals = [
+        r["temperature"] for r in indoor_history if r.get("temperature") is not None
+    ]
+    out_temp_times = [
+        _parse_time(r["time"])
+        for r in outdoor_history
+        if r.get("temperature") is not None
+    ]
+    out_temp_vals = [
+        r["temperature"] for r in outdoor_history if r.get("temperature") is not None
+    ]
+    temp_shock_bands = _find_shock_bands(
+        indoor_history, outdoor_history, TEMP_SHOCK_THRESHOLD
+    )
+
+    # --- Humidity Chart ---
+    in_hum_times = [
+        _parse_time(r["time"]) for r in indoor_history if r.get("humidity") is not None
+    ]
+    in_hum_vals = [
+        r["humidity"] for r in indoor_history if r.get("humidity") is not None
+    ]
+    out_hum_times = [
+        _parse_time(r["time"]) for r in outdoor_history if r.get("humidity") is not None
+    ]
+    out_hum_vals = [
+        r["humidity"] for r in outdoor_history if r.get("humidity") is not None
+    ]
+    hum_shock_bands = _find_hum_shock_bands(
+        indoor_history, outdoor_history, HUM_SHOCK_THRESHOLD
+    )
+
+    if in_temp_times or out_temp_times:
+        temp_fig = _make_chart(
+            "🌡️ Temperature — Last 24H",
+            in_temp_times,
+            in_temp_vals,
+            out_temp_times,
+            out_temp_vals,
+            in_color="#3b82f6",
+            out_color="#f97316",
+            y_label="°C",
+            shock_bands=temp_shock_bands,
+        )
+        st.plotly_chart(temp_fig, use_container_width=True)
+    else:
+        st.info("No temperature history data available for the last 24 hours.")
+
+    if in_hum_times or out_hum_times:
+        hum_fig = _make_chart(
+            "💧 Humidity — Last 24H",
+            in_hum_times,
+            in_hum_vals,
+            out_hum_times,
+            out_hum_vals,
+            in_color="#06b6d4",
+            out_color="#eab308",
+            y_label="%",
+            shock_bands=hum_shock_bands,
+        )
+        st.plotly_chart(hum_fig, use_container_width=True)
+    else:
+        st.info("No humidity history data available for the last 24 hours.")
+
+    if temp_shock_bands or hum_shock_bands:
+        st.markdown(
+            "<p style='font-size:0.82rem; color:#ef4444; margin-top:4px;'>⚡ Red bands indicate Environmental Shock periods (ΔT > 5°C or ΔH > 15%).</p>",
+            unsafe_allow_html=True,
+        )
+
+
+# --- Section 3: Step Outside (Environmental Shock) ---
 st.markdown(
     "<hr style='border-color: rgba(255,255,255,0.1); margin: 30px 0;'>",
     unsafe_allow_html=True,

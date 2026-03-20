@@ -1,6 +1,7 @@
 import os
 import boto3
 import json
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -75,6 +76,100 @@ def get_latest_outdoor_data():
     except Exception as e:
         print(f"Error parsing outdoor data: {e}")
         return None
+
+
+def get_indoor_history_24h():
+    """Fetch all indoor sensor records from the last 24 hours."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=S3_BUCKET, Prefix="indoor/")
+
+    records_by_time = {}
+    for page in pages:
+        if "Contents" not in page:
+            continue
+        for obj in page["Contents"]:
+            try:
+                resp = s3_client.get_object(Bucket=S3_BUCKET, Key=obj["Key"])
+                data = json.loads(resp["Body"].read().decode("utf-8"))
+
+                # Handle both list and single dict
+                entries = data if isinstance(data, list) else [data]
+
+                for entry in entries:
+                    time_str = entry.get("timestamp") or entry.get("time")
+                    if not time_str:
+                        continue
+                    try:
+                        t = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                    except ValueError:
+                        continue
+                    if t < cutoff:
+                        continue
+                    vals = entry.get("values", entry)
+                    temp = (
+                        vals.get("temperature")
+                        if isinstance(vals, dict)
+                        else entry.get("temperature")
+                    )
+                    hum = (
+                        vals.get("humidity")
+                        if isinstance(vals, dict)
+                        else entry.get("humidity")
+                    )
+                    if temp is not None and hum is not None:
+                        records_by_time[time_str] = {
+                            "time": time_str,
+                            "temperature": temp,
+                            "humidity": hum,
+                        }
+            except Exception as e:
+                print(f"Error reading indoor history object {obj['Key']}: {e}")
+
+    return sorted(records_by_time.values(), key=lambda x: x["time"])
+
+
+def get_outdoor_history_24h():
+    """Fetch all outdoor realtime records from the last 24 hours."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    paginator = s3_client.get_paginator("list_objects_v2")
+    pages = paginator.paginate(Bucket=S3_BUCKET, Prefix="realtime/")
+
+    records_by_time = {}
+    for page in pages:
+        if "Contents" not in page:
+            continue
+        for obj in page["Contents"]:
+            try:
+                resp = s3_client.get_object(Bucket=S3_BUCKET, Key=obj["Key"])
+                data = json.loads(resp["Body"].read().decode("utf-8"))
+
+                # Realtime format: {"data": {"time": ..., "values": {...}}}
+                realtime_data = data.get("data", {}) if isinstance(data, dict) else {}
+                time_str = realtime_data.get("time")
+                vals = realtime_data.get("values", {})
+
+                if not time_str:
+                    continue
+                try:
+                    t = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if t < cutoff:
+                    continue
+
+                temp = vals.get("temperature")
+                hum = vals.get("humidity")
+                if temp is not None and hum is not None:
+                    records_by_time[time_str] = {
+                        "time": time_str,
+                        "temperature": temp,
+                        "humidity": hum,
+                    }
+            except Exception as e:
+                print(f"Error reading outdoor history object {obj['Key']}: {e}")
+
+    return sorted(records_by_time.values(), key=lambda x: x["time"])
 
 
 def calculate_risk_factors(indoor, outdoor):

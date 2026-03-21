@@ -4,7 +4,87 @@ import os
 import plotly.graph_objects as go
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+import threading
+import time as _time
 
+# ---------------------------------------------------------------------------
+# Global Data Store — "stale-while-revalidate"
+#
+# * `_data_store` lives at *module* level → shared by every Streamlit session
+#   running inside the same server process.
+# * A daemon thread refreshes it every REFRESH_INTERVAL seconds.
+# * The UI always reads the current snapshot instantly — zero blocking.
+# * The loading screen only appears on a true cold start (data is None).
+# ---------------------------------------------------------------------------
+REFRESH_INTERVAL = 5 * 60  # seconds between background refreshes
+
+
+class _DataStore:
+    def __init__(self):
+        self.indoor = None
+        self.outdoor = None
+        self.risks = None
+        self.indoor_history = None
+        self.outdoor_history = None
+        self._lock = threading.Lock()
+        self._started = False
+
+    # -- fetch & store -----------------------------------------------------
+    def refresh(self):
+        """Fetch fresh data from S3 and swap it in atomically."""
+        try:
+            indoor = data_loader.get_latest_indoor_data()
+            outdoor = data_loader.get_latest_outdoor_data()
+            risks = data_loader.calculate_risk_factors(indoor, outdoor)
+            indoor_history = data_loader.get_indoor_history_24h()
+            outdoor_history = data_loader.get_outdoor_history_24h()
+            with self._lock:
+                self.indoor = indoor
+                self.outdoor = outdoor
+                self.risks = risks
+                self.indoor_history = indoor_history
+                self.outdoor_history = outdoor_history
+        except Exception as e:
+            print(f"[DataStore] background refresh failed: {e}")
+
+    # -- snapshot for the UI -----------------------------------------------
+    def get(self):
+        with self._lock:
+            return (
+                self.indoor,
+                self.outdoor,
+                self.risks,
+                self.indoor_history,
+                self.outdoor_history,
+            )
+
+    @property
+    def has_data(self):
+        with self._lock:
+            return self.indoor is not None and self.outdoor is not None
+
+    # -- background loop ----------------------------------------------------
+    def start_background_loop(self):
+        if self._started:
+            return
+        self._started = True
+
+        def _loop():
+            while True:
+                self.refresh()
+                _time.sleep(REFRESH_INTERVAL)
+
+        t = threading.Thread(target=_loop, daemon=True)
+        t.start()
+
+
+# Module-level singleton — created once per server process
+_data_store = _DataStore()
+_data_store.start_background_loop()
+
+# ---------------------------------------------------------------------------
+# Streamlit page config & auto-refresh
+# ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="Skin Guardian",
     page_icon="🛡️",
@@ -12,7 +92,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Auto-refresh the page every 15 minutes
+# Auto-refresh the page every 15 minutes so the UI picks up the latest data
 st_autorefresh(interval=15 * 60 * 1000, key="data_refresh")
 
 
@@ -27,17 +107,6 @@ def load_css():
 load_css()
 
 
-# Data Fetching — show_spinner=False prevents the "Running get_data()." banner
-@st.cache_data(ttl=60 * 5, show_spinner=False)
-def get_data():
-    indoor = data_loader.get_latest_indoor_data()
-    outdoor = data_loader.get_latest_outdoor_data()
-    risks = data_loader.calculate_risk_factors(indoor, outdoor)
-    indoor_history = data_loader.get_indoor_history_24h()
-    outdoor_history = data_loader.get_outdoor_history_24h()
-    return indoor, outdoor, risks, indoor_history, outdoor_history
-
-
 # --- Always render the header first so the title is visible immediately ---
 st.markdown(
     "<h1 class='hud-title'>SKIN_GUARDIAN<span class='blink'>_</span></h1>",
@@ -48,11 +117,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Detect first-ever load: no data in cache yet
-_first_load = "data_loaded" not in st.session_state
-
-if _first_load:
-    # Show a styled loading status bar on first load only
+# ---------------------------------------------------------------------------
+# Wait for data only on cold start (very first server boot). After that,
+# `_data_store` always has data, so every session renders instantly.
+# ---------------------------------------------------------------------------
+if not _data_store.has_data:
     _load_placeholder = st.empty()
     _load_placeholder.markdown(
         """
@@ -95,12 +164,14 @@ if _first_load:
         """,
         unsafe_allow_html=True,
     )
+    # Spin-wait until the background thread finishes the first fetch
+    while not _data_store.has_data:
+        _time.sleep(0.3)
+    _load_placeholder.empty()
 
-indoor_data, outdoor_data, risk_factors, indoor_history, outdoor_history = get_data()
-
-if _first_load:
-    st.session_state["data_loaded"] = True
-    _load_placeholder.empty()  # Remove loading bar once data is ready
+indoor_data, outdoor_data, risk_factors, indoor_history, outdoor_history = (
+    _data_store.get()
+)
 
 if not indoor_data or not outdoor_data:
     st.error(

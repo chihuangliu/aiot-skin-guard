@@ -78,9 +78,17 @@ class _DataStore:
         t.start()
 
 
-# Module-level singleton — created once per server process
-_data_store = _DataStore()
-_data_store.start_background_loop()
+# True singleton: @st.cache_resource (no TTL) survives Streamlit's
+# script re-executions.  The DataStore + its background thread are
+# created exactly once per server process.
+@st.cache_resource
+def _get_data_store():
+    store = _DataStore()
+    store.start_background_loop()
+    return store
+
+
+_data_store = _get_data_store()
 
 # ---------------------------------------------------------------------------
 # Streamlit page config & auto-refresh
